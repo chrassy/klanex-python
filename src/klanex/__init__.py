@@ -8,6 +8,8 @@ from .types import (
     ExecutionError,
     ExecutionResult,
     ReplayResponse,
+    RotateApiKeyResponse,
+    RotateWebhookSecretResponse,
     WebhookEvent,
 )
 from .webhook import WEBHOOK_HEADERS, sign_webhook, verify_webhook
@@ -25,6 +27,8 @@ __all__ = [
     "KlanexError",
     "KlanexSchemaError",
     "ReplayResponse",
+    "RotateApiKeyResponse",
+    "RotateWebhookSecretResponse",
     "WebhookEvent",
     "WebhookVerificationError",
     "sign_webhook",

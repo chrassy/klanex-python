@@ -105,6 +105,21 @@ clone = klanex.replay(failed_execution_id)
 Re-runs the byte-exact original payload with the same sealed credentials —
 no re-prompting the LLM that generated it.
 
+## Rotate credentials
+
+```python
+# Old key stops working immediately; this client switches to the new one.
+new = klanex.rotate_api_key()
+print(new.api_key)
+
+# Callbacks after this are signed with the new secret — update your verifier.
+rotated = klanex.rotate_webhook_secret()
+print(rotated.webhook_secret)
+```
+
+Each secret is returned only once. Both methods exist on `AsyncKlanex` too.
+If other processes share the key, persist the value from `rotate_api_key()`.
+
 ## Agent framework adapters
 
 Wrap a klanex-managed target as a native tool for LangGraph / LangChain,

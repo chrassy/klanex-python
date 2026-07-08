@@ -13,6 +13,8 @@ from .types import (
     ExecuteResponse,
     Execution,
     ReplayResponse,
+    RotateApiKeyResponse,
+    RotateWebhookSecretResponse,
     execution_from_wire,
 )
 
@@ -88,6 +90,20 @@ def _replay_response(response: httpx.Response) -> ReplayResponse:
     )
 
 
+def _rotate_api_key_response(response: httpx.Response) -> RotateApiKeyResponse:
+    data = response.json()
+    return RotateApiKeyResponse(tenant_id=data["tenant_id"], api_key=data["api_key"])
+
+
+def _rotate_webhook_secret_response(
+    response: httpx.Response,
+) -> RotateWebhookSecretResponse:
+    data = response.json()
+    return RotateWebhookSecretResponse(
+        tenant_id=data["tenant_id"], webhook_secret=data["webhook_secret"]
+    )
+
+
 class Klanex:
     """Synchronous client.
 
@@ -150,6 +166,28 @@ class Klanex:
         )
         _raise_for_status(response)
         return _replay_response(response)
+
+    def rotate_api_key(self) -> RotateApiKeyResponse:
+        """Rotate this tenant's API key. The old key stops working
+        immediately; this client switches to the new key so further calls
+        keep working. The raw key is returned only here."""
+        response = self._client.post(
+            f"{self._base}/v1/api-key/rotate", headers=self._headers
+        )
+        _raise_for_status(response)
+        result = _rotate_api_key_response(response)
+        self._headers["X-API-Key"] = result.api_key
+        return result
+
+    def rotate_webhook_secret(self) -> RotateWebhookSecretResponse:
+        """Rotate this tenant's webhook signing secret. Callbacks sent after
+        this are signed with the new secret, so update your verifier. The
+        secret is returned only here."""
+        response = self._client.post(
+            f"{self._base}/v1/webhook-secret/rotate", headers=self._headers
+        )
+        _raise_for_status(response)
+        return _rotate_webhook_secret_response(response)
 
     def wait_for_result(
         self,
@@ -234,6 +272,26 @@ class AsyncKlanex:
         )
         _raise_for_status(response)
         return _replay_response(response)
+
+    async def rotate_api_key(self) -> RotateApiKeyResponse:
+        """Rotate this tenant's API key; this client switches to the new key.
+        The raw key is returned only here."""
+        response = await self._client.post(
+            f"{self._base}/v1/api-key/rotate", headers=self._headers
+        )
+        _raise_for_status(response)
+        result = _rotate_api_key_response(response)
+        self._headers["X-API-Key"] = result.api_key
+        return result
+
+    async def rotate_webhook_secret(self) -> RotateWebhookSecretResponse:
+        """Rotate this tenant's webhook signing secret. The secret is returned
+        only here; update your verifier."""
+        response = await self._client.post(
+            f"{self._base}/v1/webhook-secret/rotate", headers=self._headers
+        )
+        _raise_for_status(response)
+        return _rotate_webhook_secret_response(response)
 
     async def wait_for_result(
         self,
