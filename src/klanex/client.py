@@ -26,8 +26,11 @@ def _build_body(
     callback_url: str | None,
     max_attempts: int | None,
     idempotency_key: str | None,
+    requires_approval: bool,
 ) -> dict[str, Any]:
     body: dict[str, Any] = {"target": target}
+    if requires_approval:
+        body["requires_approval"] = True
     if payload is not None:
         body["payload"] = payload
     if payload_schema is not None:
@@ -116,12 +119,14 @@ class Klanex:
         callback_url: str | None = None,
         max_attempts: int | None = None,
         idempotency_key: str | None = None,
+        requires_approval: bool = False,
     ) -> ExecuteResponse:
         """Submit a tool-use intent. Returns as soon as the engine has
         validated and queued it. Raises KlanexSchemaError when the payload
         fails the schema gate — feed ``llm_hint`` back to your agent."""
         body = _build_body(
-            target, payload, payload_schema, callback_url, max_attempts, idempotency_key
+            target, payload, payload_schema, callback_url, max_attempts,
+            idempotency_key, requires_approval
         )
         response = self._client.post(
             f"{self._base}/v1/executions", json=body, headers=self._headers
@@ -204,9 +209,11 @@ class AsyncKlanex:
         callback_url: str | None = None,
         max_attempts: int | None = None,
         idempotency_key: str | None = None,
+        requires_approval: bool = False,
     ) -> ExecuteResponse:
         body = _build_body(
-            target, payload, payload_schema, callback_url, max_attempts, idempotency_key
+            target, payload, payload_schema, callback_url, max_attempts,
+            idempotency_key, requires_approval
         )
         response = await self._client.post(
             f"{self._base}/v1/executions", json=body, headers=self._headers

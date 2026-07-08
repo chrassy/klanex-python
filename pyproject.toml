@@ -28,7 +28,10 @@ Homepage = "https://github.com/chrassy/klanex-python"
 Repository = "https://github.com/chrassy/klanex-python"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.8"]
+langchain = ["langchain-core>=0.3"]
+crewai = ["crewai>=0.80"]
+adk = ["google-adk>=0.1"]
+dev = ["pytest>=8", "ruff>=0.8", "langchain-core>=0.3"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/klanex"]

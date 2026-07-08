@@ -105,6 +105,41 @@ clone = klanex.replay(failed_execution_id)
 Re-runs the byte-exact original payload with the same sealed credentials —
 no re-prompting the LLM that generated it.
 
+## Agent framework adapters
+
+Wrap a klanex-managed target as a native tool for LangGraph / LangChain,
+CrewAI, or Google ADK — the agent calls it like any tool, and klanex owns
+the reliability (schema gate, retries, approvals, credentials).
+
+```bash
+pip install "klanex[langchain]"   # or [crewai] / [adk]
+```
+
+```python
+from klanex import Klanex
+from klanex.adapters import langchain_tool   # crewai_tool, adk_tool
+
+klanex = Klanex(api_key=..., base_url=...)
+
+refund = langchain_tool(
+    klanex,
+    name="create_refund",
+    description="Refund a Stripe charge",
+    target={"url": "https://api.stripe.com/v1/refunds",
+            "connection_id": "con_..."},   # vault-managed credential
+    payload_schema={"type": "object", "required": ["charge_id", "amount"]},
+    requires_approval=True,                # pause for a human in Slack
+)
+
+# Drop `refund` into a LangGraph/LangChain agent's tools list. When the agent
+# calls it, the payload runs through klanex; the tool returns the API response
+# on success, or an llm_hint the agent can use to fix a bad payload.
+```
+
+The same call shape produces a CrewAI `BaseTool` (`crewai_tool`) or a Google
+ADK `FunctionTool` (`adk_tool`). Frameworks are imported lazily, so the base
+`klanex` install stays dependency-light.
+
 ## Development
 
 ```bash
