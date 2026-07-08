@@ -37,6 +37,20 @@ class ReplayResponse:
 
 
 @dataclass(frozen=True)
+class RotateApiKeyResponse:
+    tenant_id: str
+    #: The new API key. Returned only once — persist it if needed.
+    api_key: str
+
+
+@dataclass(frozen=True)
+class RotateWebhookSecretResponse:
+    tenant_id: str
+    #: The new webhook signing secret. Returned only once.
+    webhook_secret: str
+
+
+@dataclass(frozen=True)
 class Execution:
     execution_id: str
     status: str

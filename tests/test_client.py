@@ -192,3 +192,61 @@ def test_async_client_round_trip():
     accepted, replayed = asyncio.run(run())
     assert accepted.execution_id == "exe_1"
     assert replayed.replay_of == "exe_1"
+
+
+def test_rotate_api_key_switches_client_key():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.path, request.headers["X-API-Key"]))
+        if request.url.path == "/v1/api-key/rotate":
+            return httpx.Response(200, json={"tenant_id": "ten_1", "api_key": "klx_new"})
+        return httpx.Response(202, json={"execution_id": "exe_1", "status": "QUEUED"})
+
+    client = make_client(handler)
+    out = client.rotate_api_key()
+    assert out.tenant_id == "ten_1"
+    assert out.api_key == "klx_new"
+    assert seen[0] == ("/v1/api-key/rotate", "klx_test")
+
+    # The next call must use the rotated key.
+    client.execute(target={"url": "https://x.example.com"})
+    assert seen[1] == ("/v1/executions", "klx_new")
+
+
+def test_rotate_webhook_secret():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/webhook-secret/rotate"
+        assert request.method == "POST"
+        return httpx.Response(
+            200, json={"tenant_id": "ten_1", "webhook_secret": "whsec_new"}
+        )
+
+    out = make_client(handler).rotate_webhook_secret()
+    assert out.tenant_id == "ten_1"
+    assert out.webhook_secret == "whsec_new"
+
+
+def test_async_rotate_api_key_switches_client_key():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.path, request.headers["X-API-Key"]))
+        if request.url.path == "/v1/api-key/rotate":
+            return httpx.Response(200, json={"tenant_id": "ten_1", "api_key": "klx_new"})
+        return httpx.Response(202, json={"execution_id": "exe_1", "status": "QUEUED"})
+
+    async def run():
+        transport = httpx.MockTransport(handler)
+        async with AsyncKlanex(
+            api_key="klx_test",
+            base_url=BASE,
+            client=httpx.AsyncClient(transport=transport),
+        ) as klanex:
+            out = await klanex.rotate_api_key()
+            await klanex.execute(target={"url": "https://x.example.com"})
+            return out
+
+    out = asyncio.run(run())
+    assert out.api_key == "klx_new"
+    assert seen[1] == ("/v1/executions", "klx_new")
