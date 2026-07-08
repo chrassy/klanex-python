@@ -1,6 +1,6 @@
 # klanex
 
-Official Python SDK for [klanex](https://github.com/chrassy/klanex) — the tool
+Official Python SDK for [klanex](https://klanexai.com) — the tool
 orchestration engine for AI agents. Fire a tool-use intent, get an
 `execution_id` back in milliseconds, and let the engine own retries, backoff,
 circuit breaking, credentials, and signed webhooks.
@@ -11,6 +11,8 @@ pip install klanex
 
 Requires Python 3.10+. Single dependency (`httpx`); sync and async clients.
 Field names match the wire format — everything is snake_case end to end.
+
+> Building in TypeScript/Node? See the [TypeScript SDK](https://github.com/chrassy/klanex-js).
 
 ## Submit a tool call
 
