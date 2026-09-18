@@ -29,9 +29,11 @@ Repository = "https://github.com/chrassy/klanex-python"
 
 [project.optional-dependencies]
 langchain = ["langchain-core>=0.3"]
+langgraph = ["langgraph>=0.2", "langchain-core>=0.3"]
+openai-agents = ["openai-agents>=0.1"]
 crewai = ["crewai>=0.80"]
 adk = ["google-adk>=0.1"]
-dev = ["pytest>=8", "ruff>=0.8", "langchain-core>=0.3"]
+dev = ["pytest>=8", "ruff>=0.8", "langchain-core>=0.3", "langgraph>=0.2", "openai-agents>=0.1"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/klanex"]

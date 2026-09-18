@@ -19,6 +19,7 @@ from .types import (
 )
 
 _REPLAY_HEADER = "X-Klanex-Idempotent-Replay"
+DEFAULT_BASE_URL = "https://api.klanexai.com"
 
 
 def _build_body(
@@ -107,7 +108,7 @@ def _rotate_webhook_secret_response(
 class Klanex:
     """Synchronous client.
 
-    >>> klanex = Klanex(api_key="klx_...", base_url="https://klanex-ingest-....run.app")
+    >>> klanex = Klanex(api_key="klx_...")  # https://api.klanexai.com
     >>> accepted = klanex.execute(target={"url": "https://api.example.com/x"}, payload={...})
     """
 
@@ -115,13 +116,11 @@ class Klanex:
         self,
         *,
         api_key: str,
-        base_url: str,
+        base_url: str = DEFAULT_BASE_URL,
         client: httpx.Client | None = None,
     ) -> None:
         if not api_key:
             raise ValueError("klanex: api_key is required")
-        if not base_url:
-            raise ValueError("klanex: base_url is required")
         self._client = client or httpx.Client(timeout=30)
         self._base = base_url.rstrip("/")
         self._headers = {"X-API-Key": api_key}
@@ -227,13 +226,11 @@ class AsyncKlanex:
         self,
         *,
         api_key: str,
-        base_url: str,
+        base_url: str = DEFAULT_BASE_URL,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         if not api_key:
             raise ValueError("klanex: api_key is required")
-        if not base_url:
-            raise ValueError("klanex: base_url is required")
         self._client = client or httpx.AsyncClient(timeout=30)
         self._base = base_url.rstrip("/")
         self._headers = {"X-API-Key": api_key}

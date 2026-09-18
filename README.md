@@ -19,8 +19,7 @@ Field names match the wire format — everything is snake_case end to end.
 ```python
 from klanex import Klanex, KlanexSchemaError
 
-klanex = Klanex(api_key=os.environ["KLANEX_API_KEY"],
-                base_url="https://klanex-ingest-....run.app")
+klanex = Klanex(api_key=os.environ["KLANEX_API_KEY"])  # https://api.klanexai.com
 
 accepted = klanex.execute(
     target={
@@ -41,7 +40,7 @@ Async is a mirror image:
 ```python
 from klanex import AsyncKlanex
 
-async with AsyncKlanex(api_key=..., base_url=...) as klanex:
+async with AsyncKlanex(api_key=...) as klanex:
     accepted = await klanex.execute(target=..., payload=...)
 ```
 
@@ -124,19 +123,38 @@ If other processes share the key, persist the value from `rotate_api_key()`.
 
 ## Agent framework adapters
 
-Wrap a klanex-managed target as a native tool for LangGraph / LangChain,
-CrewAI, or Google ADK — the agent calls it like any tool, and klanex owns
-the reliability (schema gate, retries, approvals, credentials).
+Wrap an API call as a native tool for **LangGraph / LangChain**, the
+**OpenAI Agents SDK**, CrewAI, or Google ADK. The model's tool arguments
+become the request payload; klanex owns the call's reliability (schema gate,
+retries with backoff, circuit breakers, approvals, credentials) and the tool
+returns text the model can act on:
+
+- **Success:** the target's response.
+- **Rejected:** the `llm_hint`, which names the bad field when klanex can
+  tell, so the model fixes one value and calls again.
+- **Still running** after `wait_timeout` (default 120 s), or **waiting for
+  approval:** a note telling the model the action is in progress and not to
+  call the tool again, so a slow API never turns into a duplicate charge.
+- **Exactly once per tool call:** the framework's tool call ID becomes the
+  idempotency key, so a resumed or retried agent step never runs the action
+  twice. Opt out with `idempotency=False`.
+
+The model never sees the target URL or credentials. Neither LangChain nor
+the Agents SDK validates a plain JSON Schema, so klanex's schema gate does,
+and a failing input comes back to the model as a correction hint.
+
+### LangGraph / LangChain
 
 ```bash
-pip install "klanex[langchain]"   # or [crewai] / [adk]
+pip install "klanex[langgraph]" langchain   # langchain for create_agent
 ```
 
 ```python
-from klanex import Klanex
-from klanex.adapters import langchain_tool   # crewai_tool, adk_tool
+from langchain.agents import create_agent
+from klanex import AsyncKlanex
+from klanex.adapters import langchain_tool
 
-klanex = Klanex(api_key=..., base_url=...)
+klanex = AsyncKlanex(api_key=...)   # a sync Klanex works too
 
 refund = langchain_tool(
     klanex,
@@ -144,18 +162,54 @@ refund = langchain_tool(
     description="Refund a Stripe charge",
     target={"url": "https://api.stripe.com/v1/refunds",
             "connection_id": "con_..."},   # vault-managed credential
-    payload_schema={"type": "object", "required": ["charge_id", "amount"]},
-    requires_approval=True,                # pause for a human in Slack
+    payload_schema={
+        "type": "object",
+        "properties": {"charge": {"type": "string"}, "amount": {"type": "integer"}},
+        "required": ["charge", "amount"],
+    },
+    requires_approval=True,                # pause for a human in Slack first
 )
 
-# Drop `refund` into a LangGraph/LangChain agent's tools list. When the agent
-# calls it, the payload runs through klanex; the tool returns the API response
-# on success, or an llm_hint the agent can use to fix a bad payload.
+agent = create_agent(model, tools=[refund])
+await agent.ainvoke({"messages": [("user", "Refund charge ch_123 in full")]})
 ```
 
-The same call shape produces a CrewAI `BaseTool` (`crewai_tool`) or a Google
-ADK `FunctionTool` (`adk_tool`). Frameworks are imported lazily, so the base
-`klanex` install stays dependency-light.
+`payload_schema` is the tool's own parameter schema, so the model fills in
+`charge` and `amount` directly. The tool works in LangGraph's `ToolNode`,
+`create_agent`, and custom graphs, sync or async.
+
+### OpenAI Agents SDK
+
+```bash
+pip install "klanex[openai-agents]"
+```
+
+```python
+from agents import Agent, Runner
+from klanex import AsyncKlanex
+from klanex.adapters import openai_agents_tool
+
+refund = openai_agents_tool(
+    AsyncKlanex(api_key=...),
+    name="create_refund",
+    description="Refund a Stripe charge",
+    target={"url": "https://api.stripe.com/v1/refunds", "connection_id": "con_..."},
+    payload_schema={...},   # same JSON Schema as above
+)
+
+agent = Agent(name="Support", instructions="...", tools=[refund])
+result = await Runner.run(agent, "Refund charge ch_123 in full")
+```
+
+Pass `strict=True` for OpenAI strict mode if your schema meets its rules
+(every property required, `additionalProperties: false`).
+
+### CrewAI and Google ADK
+
+The same arguments produce a CrewAI `BaseTool` (`crewai_tool`) or a Google
+ADK `FunctionTool` (`adk_tool`). These take a single `payload` argument with
+the schema described in the tool description. Frameworks are imported
+lazily, so the base `klanex` install stays dependency-light.
 
 ## Development
 
