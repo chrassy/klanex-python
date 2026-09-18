@@ -13,6 +13,9 @@ TERMINAL_STATUSES = frozenset({"SUCCEEDED", "FAILED"})
 class ExecutionResult:
     status_code: int
     body: str
+    #: Explains a success the status code alone does not show, such as a
+    #: duplicate of klanex's own earlier attempt counted as success.
+    note: str | None = None
 
 
 @dataclass(frozen=True)
@@ -20,6 +23,9 @@ class ExecutionError:
     code: str
     message: str
     llm_hint: str | None = None
+    #: ``{"cause": ..., "field": ...}`` when klanex could tell from the
+    #: target's response why the call failed.
+    diagnosis: dict[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -82,14 +88,19 @@ class WebhookEvent:
 def result_from_wire(raw: dict[str, Any] | None) -> ExecutionResult | None:
     if not raw:
         return None
-    return ExecutionResult(status_code=raw["status_code"], body=raw["body"])
+    return ExecutionResult(
+        status_code=raw["status_code"], body=raw["body"], note=raw.get("note")
+    )
 
 
 def error_from_wire(raw: dict[str, Any] | None) -> ExecutionError | None:
     if not raw:
         return None
     return ExecutionError(
-        code=raw["code"], message=raw["message"], llm_hint=raw.get("llm_hint")
+        code=raw["code"],
+        message=raw["message"],
+        llm_hint=raw.get("llm_hint"),
+        diagnosis=raw.get("diagnosis"),
     )
 
 
